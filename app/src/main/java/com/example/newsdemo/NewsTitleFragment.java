@@ -1,8 +1,12 @@
 package com.example.newsdemo;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.content.Context;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.NotificationCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -94,6 +98,14 @@ public class NewsTitleFragment extends Fragment {
                         newsContentFragment.refresh(news.getTitle(),news.getContent(),news.getImageId());
                     }else {
                         newsContentActivity.actionStart(getActivity(),news.getTitle(),news.getContent(),news.getImageId());
+                        NotificationManager notificationManager = (NotificationManager)getActivity().getSystemService(Context.NOTIFICATION_SERVICE);
+                        Notification notification = new NotificationCompat.Builder(getActivity())
+                                .setWhen(System.currentTimeMillis())
+                                .setContentText("you click news")
+                                .setContentTitle("News notification")
+                                .setSmallIcon(R.mipmap.ic_launcher)
+                                .build();
+                        notificationManager.notify(1,notification);
                     }
                 }
             });
