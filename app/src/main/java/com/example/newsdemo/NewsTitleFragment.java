@@ -9,13 +9,26 @@ import android.support.v4.app.Fragment;
 import android.support.v4.app.NotificationCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserFactory;
+
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Response;
+
+import static android.content.ContentValues.TAG;
 
 /**
  * @version $Rev$
@@ -26,7 +39,13 @@ import java.util.List;
  */
 public class NewsTitleFragment extends Fragment {
 
+    private HttpUtil mHttpUtil;
+
+    private ImageView image;
+
     private boolean isTwoPlne;
+
+    private List<News> mNewsList = new ArrayList<>();
 
     @Nullable
     @Override
@@ -35,21 +54,79 @@ public class NewsTitleFragment extends Fragment {
         RecyclerView newsTitleRecyclerView = (RecyclerView) view.findViewById(R.id.news_title_recycler_view);
         LinearLayoutManager manager = new LinearLayoutManager(getActivity());
         newsTitleRecyclerView.setLayoutManager(manager);
-        NewsAdapter adapter = new NewsAdapter(getNews());
+        getNews();
+        NewsAdapter adapter = new NewsAdapter(mNewsList);
         newsTitleRecyclerView.setAdapter(adapter);
         return view;
     }
 
-    private List<News> getNews() {
-        List<News> newsList = new ArrayList<>();
-        for(int i = 0; i < 10;i++){
-            News news = new News();
-            news.setTitle("news Title " + i);
-            news.setContent("news Content "+ i);
-            news.setImageId(R.drawable.leimur);
-            newsList.add(news);
+    private void getNews() {
+        mHttpUtil.sendRequestWithOkhttp("http://192.168.0.101:8080/webServer/newslist.xml", new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+                Log.i(TAG, "onResponse: 进入网站失败");
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                Log.i(TAG, "onResponse: 成功进入网站！");
+                final String responseData = response.body().string();
+                Log.i(TAG, "onResponse: "+responseData);
+                parseXMLWithPull(responseData);
+            }
+        });
+
+
+    }
+
+    private void parseXMLWithPull(String responseData) {
+        try {
+            XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
+            XmlPullParser parser = factory.newPullParser();
+            parser.setInput(new StringReader(responseData));
+            Log.i(TAG, "parseXMLWithPull: "+responseData);
+            int eventType = parser.getEventType();
+            Log.i(TAG, "parseXMLWithPull: "+eventType);
+            String title = "";
+            String description = "";
+            String image = "";
+            while (eventType != XmlPullParser.END_DOCUMENT){
+                String nodeName = parser.getName();
+                Log.i(TAG, "parseXMLWithPull: "+nodeName);
+                switch (eventType){
+                    case XmlPullParser.START_TAG: {
+                        if("title".equals(nodeName)){
+                            title = parser.nextText();
+                            Log.i(TAG, "title:" + title);
+                        }else if("description".equals(nodeName)){
+                            description = parser.nextText();
+                        }else if("image".equals(nodeName)){
+                            image = parser.nextText();
+                        }
+                        break;
+                    }
+                    case XmlPullParser.END_TAG:{
+                        if ("app".equals(nodeName)){
+                            News news = new News();
+                            news.setTitle(title);
+                            news.setContent(description);
+                            news.setImageId(R.drawable.leimur);
+                            mNewsList.add(news);
+                        }
+                        break;
+                    }
+                    default:
+                        break;
+                }
+
+                Log.i(TAG, "parseXMLWithPull: "+eventType);
+                eventType = parser.next();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        return newsList;
     }
 
     @Override
@@ -83,6 +160,7 @@ public class NewsTitleFragment extends Fragment {
             public ViewHolder(View itemView) {
                 super(itemView);
                 newsTitle = (TextView) itemView.findViewById(R.id.news_title);
+                image = (ImageView) itemView.findViewById(R.id.news_image);
             }
         }
         @Override
